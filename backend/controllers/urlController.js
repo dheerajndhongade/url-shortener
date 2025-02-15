@@ -95,3 +95,73 @@ exports.redirectShortUrl = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+exports.getUrlAnalytics = async (req, res) => {
+  try {
+    const { alias } = req.params;
+
+    const urlEntry = await Url.findOne({
+      $or: [{ shortUrl: alias }, { customAlias: alias }],
+    });
+
+    if (!urlEntry) {
+      return res.status(404).json({ error: "Short URL not found" });
+    }
+
+    const analytics = await Analytics.find({ shortUrl: alias });
+
+    const totalClicks = analytics.length;
+    const uniqueUsers = new Set(analytics.map((entry) => entry.ipAddress)).size;
+
+    const last7Days = {};
+    const osStats = {};
+    const deviceStats = {};
+
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const formattedDate = date.toISOString().split("T")[0];
+      last7Days[formattedDate] = 0;
+    }
+
+    analytics.forEach((entry) => {
+      const date = entry.timestamp.toISOString().split("T")[0];
+      if (last7Days[date] !== undefined) {
+        last7Days[date]++;
+      }
+
+      if (!osStats[entry.osType]) {
+        osStats[entry.osType] = new Set();
+      }
+      osStats[entry.osType].add(entry.ipAddress);
+
+      if (!deviceStats[entry.deviceType]) {
+        deviceStats[entry.deviceType] = new Set();
+      }
+      deviceStats[entry.deviceType].add(entry.ipAddress);
+    });
+
+    res.json({
+      totalClicks,
+      uniqueUsers,
+      clicksByDate: Object.entries(last7Days).map(([date, count]) => ({
+        date,
+        clickCount: count,
+      })),
+      osType: Object.entries(osStats).map(([os, users]) => ({
+        osName: os,
+        uniqueClicks: users.size,
+        uniqueUsers: users.size,
+      })),
+      deviceType: Object.entries(deviceStats).map(([device, users]) => ({
+        deviceName: device,
+        uniqueClicks: users.size,
+        uniqueUsers: users.size,
+      })),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
