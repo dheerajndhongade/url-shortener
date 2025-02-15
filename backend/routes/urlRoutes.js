@@ -1,5 +1,8 @@
 const express = require("express");
-const { createShortUrl } = require("../controllers/urlController");
+const {
+  createShortUrl,
+  redirectShortUrl,
+} = require("../controllers/urlController");
 const authMiddleware = require("../middleware/authMiddleware");
 const rateLimit = require("express-rate-limit");
 
@@ -12,5 +15,7 @@ const limiter = rateLimit({
 });
 
 router.post("/shorten", authMiddleware, limiter, createShortUrl);
+
+router.get("/shorten/:alias", redirectShortUrl);
 
 module.exports = router;
