@@ -165,3 +165,63 @@ exports.getUrlAnalytics = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+exports.getTopicAnalytics = async (req, res) => {
+  try {
+    const { topic } = req.params;
+
+    const urls = await Url.find({ topic });
+
+    if (!urls.length) {
+      return res.status(404).json({ error: "No URLs found for this topic" });
+    }
+
+    const shortUrls = urls.map((url) => url.shortUrl);
+
+    const analytics = await Analytics.find({ shortUrl: { $in: shortUrls } });
+
+    const totalClicks = analytics.length;
+    const uniqueUsers = new Set(analytics.map((entry) => entry.ipAddress)).size;
+
+    const last7Days = {};
+    const urlStats = {};
+
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const formattedDate = date.toISOString().split("T")[0];
+      last7Days[formattedDate] = 0;
+    }
+
+    analytics.forEach((entry) => {
+      const date = entry.timestamp.toISOString().split("T")[0];
+      if (last7Days[date] !== undefined) {
+        last7Days[date]++;
+      }
+
+      if (!urlStats[entry.shortUrl]) {
+        urlStats[entry.shortUrl] = new Set();
+      }
+      urlStats[entry.shortUrl].add(entry.ipAddress);
+    });
+
+    res.json({
+      totalClicks,
+      uniqueUsers,
+      clicksByDate: Object.entries(last7Days).map(([date, count]) => ({
+        date,
+        clickCount: count,
+      })),
+      urls: urls.map((url) => ({
+        shortUrl: `${process.env.BASE_URL}/api/shorten/${url.shortUrl}`,
+        totalClicks: analytics.filter((a) => a.shortUrl === url.shortUrl)
+          .length,
+        uniqueUsers: urlStats[url.shortUrl] ? urlStats[url.shortUrl].size : 0,
+      })),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+};

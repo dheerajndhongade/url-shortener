@@ -3,6 +3,7 @@ const {
   createShortUrl,
   redirectShortUrl,
   getUrlAnalytics,
+  getTopicAnalytics,
 } = require("../controllers/urlController");
 const authMiddleware = require("../middleware/authMiddleware");
 const rateLimit = require("express-rate-limit");
@@ -20,5 +21,7 @@ router.post("/shorten", authMiddleware, limiter, createShortUrl);
 router.get("/shorten/:alias", redirectShortUrl);
 
 router.get("/analytics/:alias", authMiddleware, getUrlAnalytics);
+
+router.get("/analytics/topic/:topic", authMiddleware, getTopicAnalytics);
 
 module.exports = router;
