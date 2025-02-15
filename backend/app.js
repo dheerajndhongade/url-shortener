@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const passport = require("passport");
 require("./config/passport");
+
 const app = express();
 
 app.use(express.json());
@@ -11,6 +12,7 @@ app.use(cors());
 app.use(passport.initialize());
 
 app.use("/auth", require("./routes/authRoutes"));
+app.use("/api", require("./routes/urlRoutes"));
 
 mongoose
   .connect(process.env.MONGO_URI)
