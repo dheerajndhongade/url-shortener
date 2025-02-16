@@ -17,13 +17,14 @@ exports.createShortUrl = async (req, res) => {
     } catch (err) {
       return res.status(400).json({ error: "Invalid URL format" });
     }
-
-    const existingUrl = await Url.findOne({ longUrl });
-    if (existingUrl) {
-      return res.status(409).json({ error: "Short URL already exists" });
+    if (customAlias) {
+      const existingAlias = await Url.findOne({ customAlias });
+      if (existingAlias) {
+        return res.status(400).json({ error: "Custom alias already taken" });
+      }
     }
 
-    let generatedCustomAlias = customAlias;
+    let generatedCustomAlias = customAlias || shortid.generate();
 
     if (!customAlias) {
       let isUnique = false;
@@ -35,11 +36,6 @@ exports.createShortUrl = async (req, res) => {
         if (!existingAlias) {
           isUnique = true;
         }
-      }
-    } else {
-      const existingAlias = await Url.findOne({ customAlias });
-      if (existingAlias) {
-        return res.status(400).json({ error: "Custom alias already taken" });
       }
     }
 
@@ -72,6 +68,7 @@ exports.redirectShortUrl = async (req, res) => {
 
     const cachedUrl = await redis.get(`shorturl:${alias}`);
     if (cachedUrl) {
+      await logAnalytics(alias, req);
       res.setHeader("Location", cachedUrl);
       return res.status(302).end();
     }
@@ -86,12 +83,33 @@ exports.redirectShortUrl = async (req, res) => {
 
     await redis.setex(`shorturl:${alias}`, 86400, urlEntry.longUrl);
 
+    await logAnalytics(alias, req);
+
     res.setHeader("Location", urlEntry.longUrl);
     return res.status(302).end();
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
+};
+
+const logAnalytics = async (alias, req) => {
+  const agent = useragent.parse(req.headers["user-agent"]);
+  const osType = agent.os.toString();
+  const deviceType = agent.device.toString();
+  const ipAddress =
+    req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+
+  const newAnalytics = new Analytics({
+    shortUrl: alias,
+    ipAddress,
+    userAgent: req.headers["user-agent"],
+    osType,
+    deviceType,
+    timestamp: new Date(),
+  });
+
+  await newAnalytics.save();
 };
 
 exports.getUrlAnalytics = async (req, res) => {
