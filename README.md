@@ -25,7 +25,7 @@ Hosting: Railway
 
 **Installation & Running Locally**
 
-git clone https://github.com/yourusername/url-shortener.git
+git clone https://github.com/dheerajndhongade/url-shortener.git
 cd url-shortener
 npm install
 
