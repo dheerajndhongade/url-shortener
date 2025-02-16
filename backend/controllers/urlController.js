@@ -1,6 +1,7 @@
 const Url = require("../models/Url");
 const shortid = require("shortid");
 const Analytics = require("../models/Analytics");
+const redis = require("../config/redis");
 
 exports.createShortUrl = async (req, res) => {
   try {
@@ -12,7 +13,6 @@ exports.createShortUrl = async (req, res) => {
     }
 
     let shortUrl;
-
     if (customAlias) {
       const existingAlias = await Url.findOne({ customAlias });
       if (existingAlias) {
@@ -33,6 +33,9 @@ exports.createShortUrl = async (req, res) => {
 
     await newUrl.save();
 
+    await redis.del(`analytics:user:${userId}`);
+    await redis.del(`analytics:topic:${topic}`);
+
     res.status(201).json({
       shortUrl: `${process.env.BASE_URL}/api/shorten/${shortUrl}`,
       createdAt: newUrl.createdAt,
@@ -47,6 +50,11 @@ exports.redirectShortUrl = async (req, res) => {
   try {
     const { alias } = req.params;
 
+    const cachedUrl = await redis.get(`shorturl:${alias}`);
+    if (cachedUrl) {
+      return res.redirect(cachedUrl);
+    }
+
     const urlEntry = await Url.findOne({
       $or: [{ shortUrl: alias }, { customAlias: alias }],
     });
@@ -55,39 +63,7 @@ exports.redirectShortUrl = async (req, res) => {
       return res.status(404).json({ error: "Short URL not found" });
     }
 
-    const userAgent = req.headers["user-agent"];
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-    let locationData = {};
-    try {
-      const geoResponse = await fetch(`http://ip-api.com/json/${ip}`);
-      locationData = await geoResponse.json();
-    } catch (error) {
-      console.error("Error fetching geolocation:", error);
-    }
-
-    const analyticsData = new Analytics({
-      shortUrl: alias,
-      ipAddress: ip,
-      userAgent,
-      osType: userAgent.includes("Windows")
-        ? "Windows"
-        : userAgent.includes("Mac")
-        ? "macOS"
-        : userAgent.includes("Linux")
-        ? "Linux"
-        : userAgent.includes("Android")
-        ? "Android"
-        : userAgent.includes("iPhone")
-        ? "iOS"
-        : "Unknown",
-      deviceType: userAgent.includes("Mobi") ? "Mobile" : "Desktop",
-      country: locationData.country || "Unknown",
-      city: locationData.city || "Unknown",
-      timestamp: new Date(),
-    });
-
-    await analyticsData.save();
+    await redis.setex(`shorturl:${alias}`, 86400, urlEntry.longUrl);
 
     res.redirect(urlEntry.longUrl);
   } catch (error) {
@@ -99,6 +75,11 @@ exports.redirectShortUrl = async (req, res) => {
 exports.getUrlAnalytics = async (req, res) => {
   try {
     const { alias } = req.params;
+
+    const cachedAnalytics = await redis.get(`analytics:url:${alias}`);
+    if (cachedAnalytics) {
+      return res.json(JSON.parse(cachedAnalytics));
+    }
 
     const urlEntry = await Url.findOne({
       $or: [{ shortUrl: alias }, { customAlias: alias }],
@@ -142,7 +123,7 @@ exports.getUrlAnalytics = async (req, res) => {
       deviceStats[entry.deviceType].add(entry.ipAddress);
     });
 
-    res.json({
+    const response = {
       totalClicks,
       uniqueUsers,
       clicksByDate: Object.entries(last7Days).map(([date, count]) => ({
@@ -159,7 +140,11 @@ exports.getUrlAnalytics = async (req, res) => {
         uniqueClicks: users.size,
         uniqueUsers: users.size,
       })),
-    });
+    };
+
+    await redis.setex(`analytics:url:${alias}`, 600, JSON.stringify(response));
+
+    res.json(response);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
@@ -170,6 +155,11 @@ exports.getTopicAnalytics = async (req, res) => {
   try {
     const { topic } = req.params;
 
+    const cachedAnalytics = await redis.get(`analytics:topic:${topic}`);
+    if (cachedAnalytics) {
+      return res.json(JSON.parse(cachedAnalytics));
+    }
+
     const urls = await Url.find({ topic });
 
     if (!urls.length) {
@@ -177,49 +167,28 @@ exports.getTopicAnalytics = async (req, res) => {
     }
 
     const shortUrls = urls.map((url) => url.shortUrl);
-
     const analytics = await Analytics.find({ shortUrl: { $in: shortUrls } });
 
     const totalClicks = analytics.length;
     const uniqueUsers = new Set(analytics.map((entry) => entry.ipAddress)).size;
 
-    const last7Days = {};
-    const urlStats = {};
-
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const formattedDate = date.toISOString().split("T")[0];
-      last7Days[formattedDate] = 0;
-    }
-
-    analytics.forEach((entry) => {
-      const date = entry.timestamp.toISOString().split("T")[0];
-      if (last7Days[date] !== undefined) {
-        last7Days[date]++;
-      }
-
-      if (!urlStats[entry.shortUrl]) {
-        urlStats[entry.shortUrl] = new Set();
-      }
-      urlStats[entry.shortUrl].add(entry.ipAddress);
-    });
-
-    res.json({
+    const response = {
       totalClicks,
       uniqueUsers,
-      clicksByDate: Object.entries(last7Days).map(([date, count]) => ({
-        date,
-        clickCount: count,
-      })),
       urls: urls.map((url) => ({
         shortUrl: `${process.env.BASE_URL}/api/shorten/${url.shortUrl}`,
         totalClicks: analytics.filter((a) => a.shortUrl === url.shortUrl)
           .length,
-        uniqueUsers: urlStats[url.shortUrl] ? urlStats[url.shortUrl].size : 0,
       })),
-    });
+    };
+
+    await redis.setex(
+      `analytics:topic:${topic}`,
+      600,
+      JSON.stringify(response)
+    );
+
+    res.json(response);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });

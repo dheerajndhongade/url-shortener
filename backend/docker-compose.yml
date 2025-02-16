@@ -1,0 +1,37 @@
+version: "3.8"
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+      - mongodb
+    env_file:
+      - .env
+    networks:
+      - app_network
+
+  redis:
+    image: "redis:alpine"
+    container_name: redis_cache
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+  mongodb:
+    image: "mongo"
+    container_name: mongo_db
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: urlshortener
+    ports:
+      - "27017:27017"
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

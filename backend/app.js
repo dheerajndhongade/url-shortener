@@ -14,6 +14,10 @@ app.use(passport.initialize());
 app.use("/auth", require("./routes/authRoutes"));
 app.use("/api", require("./routes/urlRoutes"));
 
+app.get("/", (req, res) => {
+  res.send("URL Shortener API is running!");
+});
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to MongoDB"))
