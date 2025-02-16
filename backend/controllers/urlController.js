@@ -12,14 +12,12 @@ exports.createShortUrl = async (req, res) => {
       return res.status(400).json({ error: "longUrl is required" });
     }
 
-    // Validate URL format
     try {
       new URL(longUrl);
     } catch (err) {
       return res.status(400).json({ error: "Invalid URL format" });
     }
 
-    // Check for existing URL
     const existingUrl = await Url.findOne({ longUrl });
     if (existingUrl) {
       return res.status(409).json({ error: "Short URL already exists" });
@@ -72,14 +70,12 @@ exports.redirectShortUrl = async (req, res) => {
   try {
     const { alias } = req.params;
 
-    // Check cache first
     const cachedUrl = await redis.get(`shorturl:${alias}`);
     if (cachedUrl) {
       res.setHeader("Location", cachedUrl);
       return res.status(302).end();
     }
 
-    // Find URL in database
     const urlEntry = await Url.findOne({
       $or: [{ shortUrl: alias }, { customAlias: alias }],
     });
@@ -88,10 +84,8 @@ exports.redirectShortUrl = async (req, res) => {
       return res.status(404).json({ error: "Short URL not found" });
     }
 
-    // Cache the result
     await redis.setex(`shorturl:${alias}`, 86400, urlEntry.longUrl);
 
-    // Set redirect headers
     res.setHeader("Location", urlEntry.longUrl);
     return res.status(302).end();
   } catch (error) {
@@ -235,10 +229,9 @@ exports.getOverallAnalytics = async (req, res) => {
     const shortUrls = urls.map((url) => url.shortUrl);
     const analytics = await Analytics.find({
       shortUrl: { $in: shortUrls },
-      timestamp: { $exists: true }, // Add this check
+      timestamp: { $exists: true },
     });
 
-    // Create mock timestamp if missing
     analytics.forEach((entry) => {
       if (!entry.timestamp) {
         entry.timestamp = new Date();
