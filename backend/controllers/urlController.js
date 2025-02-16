@@ -12,21 +12,30 @@ exports.createShortUrl = async (req, res) => {
       return res.status(400).json({ error: "longUrl is required" });
     }
 
-    let shortUrl;
-    if (customAlias) {
+    let generatedCustomAlias = customAlias;
+
+    if (!customAlias) {
+      let isUnique = false;
+      while (!isUnique) {
+        generatedCustomAlias = shortid.generate();
+        const existingAlias = await Url.findOne({
+          customAlias: generatedCustomAlias,
+        });
+        if (!existingAlias) {
+          isUnique = true;
+        }
+      }
+    } else {
       const existingAlias = await Url.findOne({ customAlias });
       if (existingAlias) {
         return res.status(400).json({ error: "Custom alias already taken" });
       }
-      shortUrl = customAlias;
-    } else {
-      shortUrl = shortid.generate();
     }
 
     const newUrl = new Url({
       longUrl,
-      shortUrl,
-      customAlias: customAlias || null,
+      shortUrl: generatedCustomAlias,
+      customAlias: generatedCustomAlias,
       topic,
       userId,
     });
@@ -37,7 +46,7 @@ exports.createShortUrl = async (req, res) => {
     await redis.del(`analytics:topic:${topic}`);
 
     res.status(201).json({
-      shortUrl: `${process.env.BASE_URL}/api/shorten/${shortUrl}`,
+      shortUrl: `${process.env.BASE_URL}/api/shorten/${generatedCustomAlias}`,
       createdAt: newUrl.createdAt,
     });
   } catch (err) {
