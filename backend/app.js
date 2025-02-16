@@ -20,10 +20,36 @@ app.get("/", (req, res) => {
   res.send("URL Shortener API is running!");
 });
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB Connection Error:", err));
+if (process.env.NODE_ENV !== "test") {
+  mongoose
+    .connect(process.env.MONGO_URI)
+    .then(() => console.log("Connected to MongoDB"))
+    .catch((err) => console.error("MongoDB Connection Error:", err));
+}
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+let server;
+
+function startServer(port = process.env.PORT) {
+  server = app.listen(port);
+  return server;
+}
+
+function closeServer() {
+  return new Promise((resolve) => {
+    if (server) {
+      server.close(() => {
+        mongoose.connection
+          .close()
+          .then(() => resolve())
+          .catch(() => resolve());
+      });
+    } else {
+      resolve();
+    }
+  });
+}
+
+app.startServer = startServer;
+app.closeServer = closeServer;
+
+module.exports = app;

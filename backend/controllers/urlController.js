@@ -12,6 +12,19 @@ exports.createShortUrl = async (req, res) => {
       return res.status(400).json({ error: "longUrl is required" });
     }
 
+    // Validate URL format
+    try {
+      new URL(longUrl);
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid URL format" });
+    }
+
+    // Check for existing URL
+    const existingUrl = await Url.findOne({ longUrl });
+    if (existingUrl) {
+      return res.status(409).json({ error: "Short URL already exists" });
+    }
+
     let generatedCustomAlias = customAlias;
 
     if (!customAlias) {
@@ -51,7 +64,7 @@ exports.createShortUrl = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -59,11 +72,14 @@ exports.redirectShortUrl = async (req, res) => {
   try {
     const { alias } = req.params;
 
+    // Check cache first
     const cachedUrl = await redis.get(`shorturl:${alias}`);
     if (cachedUrl) {
-      return res.redirect(cachedUrl);
+      res.setHeader("Location", cachedUrl);
+      return res.status(302).end();
     }
 
+    // Find URL in database
     const urlEntry = await Url.findOne({
       $or: [{ shortUrl: alias }, { customAlias: alias }],
     });
@@ -72,12 +88,15 @@ exports.redirectShortUrl = async (req, res) => {
       return res.status(404).json({ error: "Short URL not found" });
     }
 
+    // Cache the result
     await redis.setex(`shorturl:${alias}`, 86400, urlEntry.longUrl);
 
-    res.redirect(urlEntry.longUrl);
+    // Set redirect headers
+    res.setHeader("Location", urlEntry.longUrl);
+    return res.status(302).end();
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -156,7 +175,7 @@ exports.getUrlAnalytics = async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -200,14 +219,13 @@ exports.getTopicAnalytics = async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 exports.getOverallAnalytics = async (req, res) => {
   try {
     const userId = req.user.id;
-
     const urls = await Url.find({ userId });
 
     if (!urls.length) {
@@ -215,8 +233,17 @@ exports.getOverallAnalytics = async (req, res) => {
     }
 
     const shortUrls = urls.map((url) => url.shortUrl);
+    const analytics = await Analytics.find({
+      shortUrl: { $in: shortUrls },
+      timestamp: { $exists: true }, // Add this check
+    });
 
-    const analytics = await Analytics.find({ shortUrl: { $in: shortUrls } });
+    // Create mock timestamp if missing
+    analytics.forEach((entry) => {
+      if (!entry.timestamp) {
+        entry.timestamp = new Date();
+      }
+    });
 
     const totalUrls = urls.length;
     const totalClicks = analytics.length;
@@ -272,6 +299,6 @@ exports.getOverallAnalytics = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
