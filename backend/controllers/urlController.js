@@ -2,6 +2,7 @@ const Url = require("../models/Url");
 const shortid = require("shortid");
 const Analytics = require("../models/Analytics");
 const redis = require("../config/redis");
+const useragent = require("useragent");
 
 exports.createShortUrl = async (req, res) => {
   try {
