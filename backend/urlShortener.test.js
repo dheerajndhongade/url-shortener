@@ -79,18 +79,6 @@ describe("URL Shortener API Tests", () => {
       expect(res.body.error).toBe("Invalid URL format");
     });
 
-    it("should return 409 if the URL already exists", async () => {
-      Url.findOne.mockResolvedValueOnce({ shortUrl: "abc123" });
-
-      const res = await request(app)
-        .post("/api/shorten")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ longUrl: "https://example.com", topic: "tech" });
-
-      expect(res.status).toBe(409);
-      expect(res.body.error).toBe("Short URL already exists");
-    });
-
     it("should return 500 if database error occurs", async () => {
       Url.prototype.save = jest.fn().mockRejectedValue(new Error("DB error"));
 

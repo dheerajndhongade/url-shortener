@@ -1,0 +1,228 @@
+swagger: "2.0"
+info:
+  title: "URL Shortener API"
+  version: "1.0"
+  description: "API for shortening URLs and managing short links."
+host: "localhost:3000"
+basePath: "/api"
+schemes:
+  - "http"
+paths:
+  /shorten:
+    post:
+      summary: "Create a short URL"
+      description: "Generate a short URL for easier sharing."
+      security:
+        - jwt: []
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/ShortenRequest"
+      responses:
+        201:
+          description: "Short URL created successfully"
+          schema:
+            $ref: "#/definitions/ShortenResponse"
+        400:
+          description: "Invalid request (e.g., missing longUrl)"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /shorten/{alias}:
+    get:
+      summary: "Redirect to the original URL"
+      description: "Redirect to the original long URL using the short alias."
+      parameters:
+        - name: "alias"
+          in: "path"
+          required: true
+          type: "string"
+          description: "The short URL alias"
+      responses:
+        302:
+          description: "Redirect to the original URL"
+          headers:
+            Location:
+              type: "string"
+              description: "The original long URL"
+        404:
+          description: "Alias not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /analytics/{alias}:
+    get:
+      summary: "Get URL Analytics"
+      description: "Retrieve analytics for a specific short URL, including total clicks, unique users, and device statistics."
+      parameters:
+        - name: "alias"
+          in: "path"
+          required: true
+          type: "string"
+          description: "The short URL alias"
+      security:
+        - jwt: []
+      responses:
+        200:
+          description: "Analytics data retrieved successfully"
+          schema:
+            $ref: "#/definitions/AnalyticsResponse"
+        404:
+          description: "Short URL alias not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /analytics/topic/{topic}:
+    get:
+      summary: "Get Topic-Based URL Analytics"
+      description: "Retrieve analytics for all short URLs under a specific topic."
+      parameters:
+        - name: "topic"
+          in: "path"
+          required: true
+          type: "string"
+          description: "The topic/category for which analytics are retrieved"
+      security:
+        - jwt: []
+      responses:
+        200:
+          description: "Analytics data retrieved successfully"
+          schema:
+            $ref: "#/definitions/TopicAnalyticsResponse"
+        404:
+          description: "Topic not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  /analytics/overall:
+    get:
+      summary: "Get Overall Analytics"
+      description: "Retrieve overall analytics for all short URLs created by the authenticated user."
+      security:
+        - jwt: []
+      responses:
+        200:
+          description: "Overall analytics retrieved successfully"
+          schema:
+            $ref: "#/definitions/OverallAnalyticsResponse"
+        401:
+          description: "Unauthorized - User must be authenticated"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+securityDefinitions:
+  jwt:
+    type: "apiKey"
+    name: "Authorization"
+    in: "header"
+    description: "Enter your bearer token in the format 'Bearer <token>'"
+
+definitions:
+  ShortenRequest:
+    type: "object"
+    required:
+      - "longUrl"
+    properties:
+      longUrl:
+        type: "string"
+        description: "The original URL to be shortened"
+        example: "https://example.com/very-long-url"
+      customAlias:
+        type: "string"
+        description: "Custom alias for the short URL (optional)"
+        example: "myCustomLink"
+      topic:
+        type: "string"
+        description: "Category under which the short URL is grouped"
+        example: "marketing"
+
+  ShortenResponse:
+    type: "object"
+    properties:
+      shortUrl:
+        type: "string"
+        description: "Generated short URL"
+        example: "http://short.ly/abc123"
+      createdAt:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp when the short URL was created"
+        example: "2025-02-13T12:00:00Z"
+
+  AnalyticsResponse:
+    type: "object"
+    properties:
+      totalClicks:
+        type: "integer"
+        description: "Total number of times the short URL has been accessed."
+        example: 150
+      uniqueUsers:
+        type: "integer"
+        description: "Number of unique users who accessed the short URL."
+        example: 120
+      clicksByDate:
+        type: "array"
+        description: "Recent 7 days of click data."
+        items:
+          $ref: "#/definitions/ClickData"
+
+  ClickData:
+    type: "object"
+    properties:
+      date:
+        type: "string"
+        format: "date"
+        description: "Date of the click event."
+        example: "2024-02-10"
+      clickCount:
+        type: "integer"
+        description: "Number of clicks on that date."
+        example: 20
+
+  ErrorResponse:
+    type: "object"
+    properties:
+      error:
+        type: "string"
+        description: "Error message"
+        example: "Short URL alias not found"
+
+  TopicAnalyticsResponse:
+    type: "object"
+    properties:
+      totalClicks:
+        type: "integer"
+        description: "Total number of clicks across all URLs in the specified topic."
+        example: 500
+      uniqueUsers:
+        type: "integer"
+        description: "Number of unique users who accessed URLs in the specified topic."
+        example: 300
+      clicksByDate:
+        type: "array"
+        description: "Total clicks per day for recent 7 days."
+        items:
+          $ref: "#/definitions/ClickData"
+
+  OverallAnalyticsResponse:
+    type: "object"
+    properties:
+      totalUrls:
+        type: "integer"
+        description: "Total number of short URLs created by the user."
+        example: 50
+      totalClicks:
+        type: "integer"
+        description: "Total number of clicks across all URLs created by the user."
+        example: 2000
+      uniqueUsers:
+        type: "integer"
+        description: "Total number of unique users who accessed the user's short URLs."
+        example: 800
+      clicksByDate:
+        type: "array"
+        description: "Total clicks per day for recent 7 days."
+        items:
+          $ref: "#/definitions/ClickData"
