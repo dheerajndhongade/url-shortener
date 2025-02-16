@@ -3,7 +3,7 @@ info:
   title: "URL Shortener API"
   version: "1.0"
   description: "API for shortening URLs and managing short links."
-host: "localhost:3000"
+host: "url-shortener-production-29e6.up.railway.app"
 basePath: "/api"
 schemes:
   - "http"
