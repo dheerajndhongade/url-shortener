@@ -17,8 +17,10 @@ app.use("/auth", require("./routes/authRoutes"));
 app.use("/api", require("./routes/urlRoutes"));
 
 app.get("/", (req, res) => {
-  res.send(`URL Shortener API is running! \n
-    Sign-in - ${process.env.GOOGLE_CALLBACK_URL}`);
+  res.send(`
+    <h1>URL Shortener API is running!</h1>
+    <p>Sign in here: <a href="${process.env.GOOGLE_CALLBACK_URL}">${process.env.GOOGLE_CALLBACK_URL}</a></p>
+  `);
 });
 
 let server;
