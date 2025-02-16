@@ -17,19 +17,24 @@ app.use("/auth", require("./routes/authRoutes"));
 app.use("/api", require("./routes/urlRoutes"));
 
 app.get("/", (req, res) => {
-  res.json({
-    message: "🚀 URL Shortener API is running!",
-    signInUrl: process.env.GOOGLE_CALLBACK_URL,
-    instructions: [
-      "1. Open the Sign-In URL in your browser.",
-      "2. Authenticate with Google.",
-      "3. After login, you'll be redirected with a token in the URL.",
-      "4. Copy the token and use it in Postman for authenticated requests.",
-      "5. In Postman, go to Authorization -> Select 'Bearer Token' -> Paste the token.",
-      "6. Now, you can test secured endpoints like URL shortening.",
-    ],
-  });
+  res.send(
+    `URL Shortener API is running!\n
+Authenticate using Google:\n
+👉 ${process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/auth/google/callback"}\n
+\n
+How to Authenticate and Use the API in Postman:\n
+1️⃣ Click on the Sign in with Google link above.\n
+2️⃣ Authenticate with your Google account.\n
+3️⃣ After login, you will be redirected with a token in the URL.\n
+4️⃣ Copy the token from the redirected URL.\n
+5️⃣ Open Postman and go to the request settings.\n
+6️⃣ Under the Authorization tab, select Bearer Token.\n
+7️⃣ Paste the copied token into the token field.\n
+8️⃣ Now, you can test secured endpoints like URL shortening.\n
+\n
+  );
 });
+
 
 let server;
 
