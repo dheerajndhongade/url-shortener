@@ -7,6 +7,8 @@ require("./config/passport");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use(cors());
 app.use(passport.initialize());
