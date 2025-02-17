@@ -6,7 +6,7 @@ info:
 host: "url-shortener-production-29e6.up.railway.app"
 basePath: "/api"
 schemes:
-  - "http"
+  - "https"
 paths:
   /shorten:
     post:

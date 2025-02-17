@@ -3,15 +3,32 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const passport = require("passport");
+const swaggerUi = require("swagger-ui-express");
+const YAML = require("yamljs");
+const path = require("path");
 require("./config/passport");
 
 const app = express();
 
+const swaggerDocument = YAML.load(path.join(__dirname, "urlshortenerdoc.yaml"));
+
 app.set("trust proxy", 1);
 
 app.use(express.json());
-app.use(cors());
+
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Authorization", "Content-Type"],
+  })
+);
+
+app.options("*", cors());
+
 app.use(passport.initialize());
+
+app.use("/swagger-doc", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.use("/auth", require("./routes/authRoutes"));
 app.use("/api", require("./routes/urlRoutes"));
