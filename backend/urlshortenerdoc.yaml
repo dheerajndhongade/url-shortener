@@ -2,7 +2,30 @@ swagger: "2.0"
 info:
   title: "URL Shortener API"
   version: "1.0"
-  description: "API for shortening URLs and managing short links."
+  description: |
+    API for shortening URLs and managing short links.
+
+    ## Authentication Guide
+    1. Click on 'Sign in with Google' at the homepage
+    2. After successful authentication, copy the JWT token from the response
+    3. In Swagger UI:
+       - Click the 'Authorize' button at the top
+       - Paste your token in the format: `Bearer <your-token>`
+       - Click 'Authorize' to save
+    4. You can now test protected endpoints marked with 🔒
+
+    ## Rate Limits
+    - URL shortening is limited to 5 requests per minute
+    - Analytics endpoints have no rate limits
+
+    ## Testing Guide
+    1. First authenticate using the steps above
+    2. Expand any endpoint you want to test
+    3. Click 'Try it out'
+    4. Fill in required parameters
+    5. Click 'Execute' to test the endpoint
+
+    Note: The redirect endpoint (GET /{alias}) can be tested directly in your browser
 host: "url-shortener-production-29e6.up.railway.app"
 basePath: "/api"
 schemes:
@@ -117,7 +140,15 @@ securityDefinitions:
     type: "apiKey"
     name: "Authorization"
     in: "header"
-    description: "Enter your bearer token in the format 'Bearer <token>'"
+    description: |
+      Enter your bearer token in the format: Bearer <token>
+
+      How to get your token:
+      1. Sign in with Google at the homepage
+      2. Copy the token from the response
+      3. Paste here with 'Bearer ' prefix
+
+      Example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 definitions:
   ShortenRequest:
