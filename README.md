@@ -7,6 +7,7 @@ A simple URL Shortener API that allows users to shorten long URLs, track analyti
 
 - **Deployment URL:** https://url-shortener-production-29e6.up.railway.app
 - **Swagger API Documentation:** https://url-shortener-production-29e6.up.railway.app/swagger-doc/
+- **Google Sign-in URL:** https://url-shortener-production-29e6.up.railway.app/auth/google/callback
 
 ---
 
